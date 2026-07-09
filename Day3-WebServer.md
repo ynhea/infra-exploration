@@ -1,323 +1,310 @@
-**1. Nginx 설치**
+# Day 3 - Web Server(Nginx) 실습
 
-* 명령어 = **sudo apt install 프로그램명**
+## 1. Nginx 설치
 
-  * 시스템 변경이 필요하므로 sudo를 붙임
-  * 설치 전, sudo apt update/upgrade로 최신 목록을 확인하고, 최신 버전으로 업데이트를 함
-  * apt는 프로그램을 설치, 업데이트, 삭제 등 할 수 있도록 도와주는 프로그램 (PlayStore와 유사)
+### 설치 명령어
 
+```bash
+sudo apt install nginx
+```
 
+### 왜 `sudo`를 사용하는가?
 
+* 시스템에 프로그램을 설치하거나 변경하는 작업은 관리자 권한(root)이 필요하다.
+* 따라서 `sudo`를 사용해 관리자 권한으로 실행한다.
 
+### 설치 전 수행
 
-**2. Nginx 서비스가 정상적으로 실행 중인지 확인 (Day1에서 배운 systemctl 지식 활용)**
+```bash
+sudo apt update
+sudo apt upgrade
+```
 
-* 전체 훑기 = systemctl list-units --state=running
+* `apt update` : 설치 가능한 패키지 목록을 최신 상태로 갱신
+* `apt upgrade` : 설치된 패키지를 최신 버전으로 업데이트
+* `apt`는 프로그램 설치, 삭제, 업데이트를 관리하는 패키지 관리자이다. (Play Store와 비슷한 역할)
 
-  * 특정 서비스 상태 보기 = **systemctl status 서비스명**
-* Nginx = Master process(Worker 관리) + Worker process → 가용성
+---
 
-> nginx.service - A high performance web server and a reverse proxy server
+# 2. Nginx 서비스 실행 확인
 
-&#x20;    Loaded: loaded (/usr/lib/systemd/system/nginx.service; enabled; preset>
+### 실행 중인 서비스 확인
 
-&#x20;    **Active: active (running)** since Thu 2026-07-09 16:25:41 KST; 6min ago
+```bash
+systemctl list-units --state=running
+```
 
-&#x20;      Docs: man:nginx(8)
+### 특정 서비스 상태 확인
 
-&#x20;   Process: 1029 ExecStartPre=/usr/sbin/nginx -t -q -g daemon on; master\_p>
+```bash
+systemctl status nginx
+```
 
-&#x20;   Process: 1036 ExecStart=/usr/sbin/nginx -g daemon on; master\_process on>
+### 확인한 내용
 
-&#x20;  Main PID: 1106 (nginx)
+```
+Active: active (running)
+```
 
-&#x20;     Tasks: 13 (limit: 9361)
+* Nginx 서비스가 정상적으로 실행되고 있음을 확인했다.
+* Day1에서 학습한 `systemctl` 명령을 실제 서비스 관리에 활용했다.
 
-&#x20;    Memory: 9.1M (peak: 20.5M)
+### Nginx 프로세스 구조
 
-&#x20;       CPU: 74ms
+* Master Process
 
-&#x20;    CGroup: /system.slice/nginx.service
+  * 설정 파일을 읽는다.
+  * Worker Process를 생성하고 관리한다.
+* Worker Process
 
-&#x20;            ├─1106 "nginx: master process /usr/sbin/nginx -g daemon on; ma>
+  * 실제 클라이언트의 HTTP 요청을 처리한다.
 
-&#x20;            ├─1108 "nginx: worker process"
+즉, 사용자의 요청은 Worker Process가 처리하며, Master Process는 이를 관리하는 역할을 한다.
 
-&#x20;            ├─1109 "nginx: worker process"
+---
 
-&#x20;            ├─1110 "nginx: worker process"
+# 3. 기본 웹페이지 배포
 
-&#x20;            ├─1111 "nginx: worker process"
+## (1) 기본 페이지 확인
 
-&#x20;            ├─1112 "nginx: worker process"
+```bash
+curl localhost
+```
 
-&#x20;            ├─1113 "nginx: worker process"
+### curl이란?
 
-&#x20;            ├─1114 "nginx: worker process"
+Command Line URL의 약자로, 터미널에서 웹 서버에 HTTP 요청을 보내는 도구이다.
 
-&#x20;            ├─1115 "nginx: worker process"
+동작 과정
 
-&#x20;            ├─1116 "nginx: worker process"
+```
+localhost
+→ 127.0.0.1
+→ 80번 포트
+→ Nginx Worker Process
+→ index.html 응답
+```
 
-&#x20;            ├─1117 "nginx: worker process"
+기본 Welcome 페이지가 정상적으로 출력되는 것을 확인하였다.
 
-&#x20;            ├─1118 "nginx: worker process"
+---
 
-&#x20;            └─1119 "nginx: worker process"
+## (2) 기본 페이지 수정
 
+현재 어떤 HTML을 제공하는지 확인하였다.
 
+```bash
+cat /etc/nginx/sites-available/default
+```
 
-Jul 09 16:25:41 YUHU systemd\[1]: Starting nginx.service - A high performanc>
+웹 페이지 수정
 
-Jul 09 16:25:41 YUHU systemd\[1]: Started nginx.service - A high performance>
+```bash
+sudo nano /var/www/html/index.html
+```
 
+※ `/var/www/html`의 소유자가 root이므로 `sudo`가 필요하다.
 
+---
 
+## (3) 새로운 사이트 생성
 
+### 디렉터리 생성
 
-**3. 기본 정적 웹페이지(HTML)를 만들어서 배포**
+```bash
+sudo mkdir -p /var/www/talju
+```
 
-* 명령어 = curl 주소 (Command Line URL)
+### HTML 작성
 
-  * 용도 : 텍스트 기반의 웹브라우저 \& 데이터를 잘 주고받는지 테스트
-  * localhost = 127.0.0.1(IP) → LoopBack으로 80번 포트로 감(웹사이트 전용) → Nginx worker process가 요청을 받음 → 규칙에 따라 응답
+```bash
+sudo nano /var/www/talju/index.html
+```
 
-><!DOCTYPE html>
+### 사이트 설정 작성
 
-<html>
+```bash
+sudo nano /etc/nginx/sites-available/talju
+```
 
-<head>
+설정 예시
 
-<title>Welcome to nginx!</title>
+```nginx
+server {
+    listen 80;
+    server_name talju.local;
 
-<style>
+    root /var/www/talju;
+    index index.html;
 
-html { color-scheme: light dark; }
-
-body { width: 35em; margin: 0 auto;
-
-font-family: Tahoma, Verdana, Arial, sans-serif; }
-
-</style>
-
-</head>
-
-<body>
-
-<h1>Welcome to nginx!</h1>
-
-<p>If you see this page, the nginx web server is successfully installed and
-
-working. Further configuration is required.</p>
-
-
-
-<p>For online documentation and support please refer to
-
-<a href="http://nginx.org/">nginx.org</a>.<br/>
-
-Commercial support is available at
-
-<a href="http://nginx.com/">nginx.com</a>.</p>
-
-
-
-<p><em>Thank you for using nginx.</em></p>
-
-</body>
-
-</html>
-
-
-
-(2) 파일 내용 변경
-
-* index.html 파일위치 찾기 = cat /etc/nginx/sites-available/default
-* 파일 수정 = sudo nano /var/www/html/index.html (ctrl + o, ctrl + x 등..)
-
-※ sudo는 소유자가 root일 경우 pc인 내가 권한을 얻기 위해 적어야 함 ※
-
-
-
-\-----------------------
-
-
-
-(3) 새로운 url 생성
-
-* 폴더 생성 = sudo mkdir -p /var/www/myhomepage
-* 파일 생성 = sudo nano /var/www/myhomepage/index.html 		>  		cat으로 확인
-* 설정 관리 = sudo nano /etc/nginx/sites-available/talju
-
->server {									// 하나의 웹사이트 선언
-
-&#x20;   listen 80;						// 80번 포트로 들어오는 신호를 대기하겠다
-
-&#x20;   server\_name talju.local;			// talju.local이라고 입력하고 들어올 때 적용
-
-&#x20;   root /var/www/talju;				// 폴더 경로
-
-&#x20;   index index.html;				// 주소 뒤에 특정 파일 이름 안 적고 그냥 들어왔을 때, 가장 먼저 보여줄 기본 페이지
-
-
-
-&#x20;   location / {
-
-&#x20;       try\_files $uri $uri/ =404;		// 특정 페이지 요청했을 때, 처리규칙
-
-&#x20;   }
-
+    location / {
+        try_files $uri $uri/ =404;
+    }
 }
+```
 
-* symlink 걸기 = sudo ln -s 원본경로 바로가기경로 (Liunk SymbolicLink)
+### 각 설정의 의미
 
-  * symbolic link(바로가기) 생성 → 유지관리가 쉬워짐
-  * sites-available = 설정 파일 보관소 (전체 목록, 당장 안 쓰는 것도 둠)
-  * sites-enabled = 현재 실제로 켜져 있는 것들만 모아둔 곳
-* 문법 검사 = sudo nginx -t (Test Configuration)
-* nginx 재실행 = sudo systemctl reload nginx
+* `listen 80`
 
+  * HTTP 80번 포트에서 요청을 받는다.
 
+* `server_name`
 
-\-----------
+  * 어떤 도메인으로 접속했을 때 이 설정을 사용할지 결정한다.
 
+* `root`
 
+  * 웹 문서가 저장된 위치
 
-(4) IPv6 listen 누락 디버깅
+* `index`
 
-* **sudo nginx -T(전체텍스트 중) | grep -A 5 "server\_name" (server\_name 이후 5줄 보여주셈)**
+  * 기본으로 보여줄 파일
 
->nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+* `location`
 
-nginx: configuration file /etc/nginx/nginx.conf test is successful
+  * 요청을 어떻게 처리할지 정의한다.
 
-&#x20;       # server\_names\_hash\_bucket\_size 64;
+* `try_files`
 
-&#x20;       # server\_name\_in\_redirect off;
+  * 요청한 파일이 존재하면 제공하고, 없으면 404를 반환한다.
 
+---
 
+### Symbolic Link 생성
 
-&#x20;       include /etc/nginx/mime.types;
+```bash
+sudo ln -s 원본경로 바로가기경로
+```
 
-&#x20;       default\_type application/octet-stream;
+Symbolic Link는 실제 파일을 복사하지 않고 바로가기만 만드는 방식이다.
 
+```
+sites-available
+→ 모든 설정 파일 저장
 
+sites-enabled
+→ 현재 활성화된 설정만 존재
+```
 
-&#x20;       ##
+설정을 활성화한 후
 
-\--
+```bash
+sudo nginx -t
+```
 
-&#x20;       **server\_name \_;**
+문법 검사
 
+```bash
+sudo systemctl reload nginx
+```
 
+재시작 없이 설정만 다시 불러왔다.
 
-&#x20;       **location / {**
+---
 
-&#x20;               **# First attempt to serve request as file, then**
+# 4. IPv6 문제 디버깅
 
-&#x20;               **# as directory, then fall back to displaying a 404.**
+현재 적용된 설정 확인
 
-&#x20;               **try\_files $uri $uri/ =404;**
+```bash
+sudo nginx -T | grep -A 5 "server_name"
+```
 
-\--
+HTTP 요청 확인
 
-\#       server\_name example.com;
+```bash
+curl -v -H "Host: talju.local" localhost
+```
 
-\#
+### 원인
 
-\#       root /var/www/example.com;
+* `localhost`는 IPv6(::1)를 우선 사용하였다.
+* 하지만 `talju` 서버는 IPv4만 listen하고 있었다.
+* 따라서 요청이 원하는 서버까지 전달되지 않았다.
 
-\#       index index.html;
+### 해결 방법
 
-\#
+```nginx
+listen [::]:80;
+```
 
-\#       location / {
+IPv6도 함께 listen하도록 설정하였다.
 
-\--
+이후
 
-&#x20;       **server\_name talju.local;**
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
 
-&#x20;       **root /var/www/talju;**
+를 수행하여 정상 동작을 확인하였다.
 
-&#x20;       **index index.html;**
+---
 
+# 5. Nginx 로그 확인
 
+### Access Log
 
-&#x20;       **location / {**
+```bash
+sudo tail -n 10 /var/log/nginx/access.log
+```
 
-&#x20;               **try\_files $uri $uri/ =404;**
+로그에서 확인할 수 있는 정보
 
+* 클라이언트 IP
+* 요청 시간
+* 요청 URL
+* HTTP 상태 코드
+* 응답 크기
+* Referer
+* User-Agent
 
+예시
 
-* **curl -v(상세히verbose) -H "Host: talju.local" localhost(헤더로 서버 설정) 2>\&1(오류포함) | head -10 (앞에서 10줄만)**
+```
+127.0.0.1
+GET /
+200
+```
 
->\* Host localhost:80 was resolved.
+→ 로컬에서 정상적으로 페이지를 요청했고, HTTP 200 OK를 반환하였다.
 
-\* IPv6: ::1
+또한
 
-\* IPv4: 127.0.0.1
+```
+GET /favicon.ico
+404
+```
 
-&#x20; % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+도 확인하였다.
 
-&#x20;                                Dload  Upload   Total   Spent    Left  Speed
+이는 브라우저가 자동으로 favicon을 요청했지만 해당 파일이 존재하지 않아 발생한 정상적인 404이다.
 
-&#x20; 0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0\*   Trying \[::1]:80...
+---
 
-**\* Connected to localhost (::1) port 80**
+### Error Log
 
-> GET / HTTP/1.1
+```bash
+sudo tail -n 10 /var/log/nginx/error.log
+```
 
-> Host: talju.local
+예시
 
-> User-Agent: curl/8.5.0
+```
+using inherited sockets
+```
 
+이는 Nginx를 재시작하거나 Reload할 때 기존 소켓을 이어받았다는 의미의 Notice 로그이며, 오류가 아니라 정상적인 동작이다.
 
+---
 
-* 원인 : talju는 IPv4만 리스닝하지만, default는 IPv4,6 모두 리스닝. curl은 localhost로 이동 → 헤더를 보고 worker process가 방향을 수정. **talju는 IPv4만 듣고 있기에 IPv6를 못 잡음**
-* 수정방법 = listen \[::]:80; 추가 (→ 문법검사 → 재실행)
+# 실습을 통해 배운 점
 
-
-
-
-
-4\. Nginx 로그 위치 찾아서 확인
-
-* 명령어 = sudo tail -n 10 /var/log/nginx/access.log
-
->::1 - - \[09/Jul/2026:17:01:32 +0900] "GET / HTTP/1.1" 200 615 "-" "curl/8.5.0"
-
-::1 - - \[09/Jul/2026:17:11:06 +0900] "GET / HTTP/1.1" 200 409 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36"
-
-**::1 - - \[09/Jul/2026:17:11:06 +0900] "GET /favicon.ico HTTP/1.1" 404 196 "http://localhost/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36"**
-
-::1 - - \[09/Jul/2026:17:37:42 +0900] "GET / HTTP/1.1" 200 118 "-" "curl/8.5.0"
-
-::1 - - \[09/Jul/2026:18:24:49 +0900] "GET / HTTP/1.1" 200 118 "-" "curl/8.5.0"
-
-::1 - - \[09/Jul/2026:18:25:06 +0900] "GET / HTTP/1.1" 200 118 "-" "curl/8.5.0"
-
-::1 - - \[09/Jul/2026:18:27:24 +0900] "GET / HTTP/1.1" 200 118 "-" "curl/8.5.0"
-
-**127.0.0.1 - - \[09/Jul/2026:18:28:45 +0900] "GET / HTTP/1.1" 200 181 "-" "curl/8.5.0"**
-
-::1 - - \[09/Jul/2026:18:57:21 +0900] "GET / HTTP/1.1" 200 181 "-" "curl/8.5.0"
-
-* 클라이언트IP  인증  시간  요청내용  상태코드  응답크기  Referer  User-Agent
-
-
-
-* 에러 로그 명령어 = sudo tail -n 10 /var/log/nginx/error.log
-
-  * /var/... = 절대경로
-  * var/... = 상대경로
-
->2026/07/09 16:25:41 \[notice] 1106#1106: using inherited sockets from "5;6;" (소켓상속)
-
-
-
-
-
-
-
-
-
+* `systemctl`을 이용해 웹 서버 서비스를 관리하는 방법
+* `curl`로 HTTP 요청을 테스트하는 방법
+* Nginx의 기본 동작 구조(Master / Worker Process)
+* Virtual Host와 `server_name` 설정 방법
+* Symbolic Link를 이용한 사이트 활성화 방식
+* IPv4와 IPv6 설정 차이로 발생하는 문제와 해결 방법
+* Access Log와 Error Log를 활용한 웹 서버 점검 방법
